@@ -3,53 +3,85 @@ const cheerio = require('cheerio');
 const mongoose = require('mongoose');
 const config = require('./config');
 
-// MongoDB connection string (adjust as needed)
-const mongoURI = config.mongoURI;
+mongoose.set('strictQuery', false);
 
-// Connect to MongoDB
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect(config.mongoURI)
+  .then(() => console.log('MongoDB connected successfully'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
 // Define Company schema
 const companySchema = new mongoose.Schema({
-  name: String
+    name: String,
+    url: String,
+    companyId: Number
+}, { collection: 'companies' });  // Explicitly specify the collection name
+
+// Define ProcessedID schema
+const processedIDSchema = new mongoose.Schema({
+    companyId: Number
 });
 
 const Company = mongoose.model('Company', companySchema);
+const ProcessedID = mongoose.model('ProcessedID', processedIDSchema);
 
-// URL of the website to scrape (replace with the actual URL)
-const url = config.scrapeURL;
-
-async function scrapeCompanies() {
-  try {
-    // Fetch the HTML content
-    const response = await axios.get(url);
-    const html = response.data;
-
-    // Parse the HTML with Cheerio
-    const $ = cheerio.load(html);
+async function scrapeCompany(companyId) {
+    const initialUrl = `${config.scrapeURL.replace(/\/\d+\/.*$/, '')}${companyId}`; // Base URL with company ID
+    console.log(`initialUrl: ${initialUrl}`);
     
-    // Select and extract company names (adjust the selector as needed)
-    const companies = [];
-    $('h1').each((index, element) => {
-      companies.push($(element).text().trim());
-    });
-    console.log(companies);
+    try {
+        const response = await axios.get(initialUrl, { maxRedirects: 5 });  // Allow up to 5 redirects
+        const finalUrl = response.request.res.responseUrl;  // Capture the final URL after redirection
+        console.log(`finalUrl: ${finalUrl}`);
+        const html = response.data;
+        const $ = cheerio.load(html);
+        
+        // Adjust this selector based on the actual HTML structure
+        const companyName = $('h1').text().trim();
 
-    // Save companies to MongoDB
-    for (const companyName of companies) {
-      const company = new Company({ name: companyName });
-      await company.save();
-      console.log(`Saved: ${companyName}`);
+        if (companyName) {
+            const company = new Company({
+                name: companyName,
+                url: finalUrl,  // Use the final URL after redirection
+                companyId: companyId
+            });
+            await company.save();
+            console.log(`Saved: ${companyName} (ID: ${companyId})`);
+        }
+        
+        await ProcessedID.create({ companyId: companyId });
+    } catch (error) {
+        if (error.response && error.response.status === 404) {
+            console.log(`ID ${companyId} not found (404)`);
+        } else {
+            console.log(`Error processing ID ${companyId}:`, error.message);
+        }
     }
-
-    console.log('Scraping completed');
-  } catch (error) {
-    console.error('Error:', error.message);
-  } finally {
-    // Close the MongoDB connection
-    mongoose.connection.close();
-  }
 }
 
-// Run the scraper
+
+async function scrapeCompanies() {
+    try {
+        let processedCount = 0;
+        let nextId = config.startID;
+
+        while (processedCount < config.batchSize) {
+            const isProcessed = await ProcessedID.findOne({ companyId: nextId });
+
+            if (!isProcessed) {
+                await scrapeCompany(nextId);
+                processedCount++;
+            }
+
+            nextId++;  // Increment the ID even if 404 or error occurs
+        }
+        
+        console.log(`Scraping completed. Processed ${processedCount} companies.`);
+    } catch (error) {
+        console.error('Error:', error.message);
+    } finally {
+        mongoose.connection.close();
+    }
+}
+
+
 scrapeCompanies();
