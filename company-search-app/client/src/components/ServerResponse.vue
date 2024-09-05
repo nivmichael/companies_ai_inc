@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1>Response from Node.js Server</h1>
+    <h1>Response from Node.js Server!</h1>
     <p>{{ serverMessage }}</p>
     <button @click="fetchData">Fetch Data</button>
   </div>
