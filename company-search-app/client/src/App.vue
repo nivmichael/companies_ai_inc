@@ -2,7 +2,7 @@
 <template>
   <div id="app">
     <header>
-      <h1>My Vue Login App</h1>
+      <h1>Company Analytics App - Login</h1>
       <nav>
         <router-link to="/" v-if="!isLoggedIn">Home</router-link> |
         <router-link to="/login" v-if="!isLoggedIn">Login</router-link>
@@ -15,7 +15,7 @@
     </main>
 
     <footer>
-      <p>&copy; 2024 My Vue Login App</p>
+      <p>&copy; 2024 Company Analytics App</p>
     </footer>
   </div>
 </template>
