@@ -9,7 +9,7 @@ mongoose.connect(config.mongoURI)
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Define Company schema
+// Define Company schema 
 const companySchema = new mongoose.Schema({
     name: String,
     url: String,
