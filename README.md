@@ -20,3 +20,6 @@ npm start
 ```
 npm run serve
 ```
+
+Local machine
+sudo systemctl start mongod && cd /home/nivmichael/sites/company-ai-app/company-search-app/server/ && nohup npm start & cd /home/nivmichael/sites/company-ai-app/company-search-app/client/ & nohup npm run serve
